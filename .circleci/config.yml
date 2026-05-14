@@ -30,18 +30,20 @@ jobs:
 
       - run:
           name: Run Dependency Audit
-          command: npm audit --audit-level=high || true
+          command: |
+            npm audit --audit-level=high || true
 
       - run:
           name: Install Semgrep
           command: |
-            sudo apt-get update
-            sudo apt-get install -y python3-pip
-            pip3 install semgrep
+            python3 -m pip install --user semgrep
+            echo 'export PATH=$HOME/.local/bin:$PATH' >> $BASH_ENV
+            source $BASH_ENV
 
       - run:
           name: Run Semgrep SAST Scan
-          command: semgrep --config=auto .
+          command: |
+            semgrep --config=auto .
 
   docker-build-scan-and-push:
     machine: true
@@ -53,42 +55,59 @@ jobs:
 
       - run:
           name: Build Docker Image
-          command: docker build -t nodegoat:latest .
+          command: |
+            docker build -t nodegoat:latest .
 
       - run:
           name: Install Trivy
           command: |
             sudo apt-get update
-            sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+            sudo apt-get install -y wget gnupg lsb-release
 
-            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+              | gpg --dearmor \
+              | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
 
-            echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/trivy.list
+            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" \
+              | sudo tee /etc/apt/sources.list.d/trivy.list
 
             sudo apt-get update
             sudo apt-get install -y trivy
 
       - run:
-          name: Run Trivy Scan
+          name: Run Trivy Filesystem Scan
           command: |
-            trivy fs \
+            trivy fs . \
               --severity HIGH,CRITICAL \
               --exit-code 0 \
-       - run:
+              --ignore-unfixed
+
+      - run:
+          name: Run Trivy Image Scan
+          command: |
+            trivy image nodegoat:latest \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              --ignore-unfixed
+
+      - run:
           name: Docker Login
           command: |
-            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+            echo "$DOCKER_PASSWORD" | docker login \
+              -u "$DOCKER_USERNAME" \
+              --password-stdin
 
       - run:
           name: Tag Docker Image
           command: |
-            docker tag nodegoat:latest $DOCKER_USERNAME/nodegoat-devsecops:latest
+            docker tag nodegoat:latest \
+              $DOCKER_USERNAME/nodegoat-devsecops:latest
 
       - run:
           name: Push Docker Image
           command: |
-            docker push $DOCKER_USERNAME/nodegoat-devsecops:latest
-              .
+            docker push \
+              $DOCKER_USERNAME/nodegoat-devsecops:latest
 
 workflows:
   version: 2
@@ -96,6 +115,7 @@ workflows:
   secure_pipeline:
     jobs:
       - test-and-security
-      - docker-build-and-scan:
+
+      - docker-build-scan-and-push:
           requires:
             - test-and-security
