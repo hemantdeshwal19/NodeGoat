@@ -68,7 +68,11 @@ jobs:
 
       - run:
           name: Run Trivy Scan
-          command: trivy image --severity HIGH,CRITICAL --exit-code 0 nodegoat:latest
+          command: |
+            trivy fs \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              .
 
 workflows:
   version: 2
