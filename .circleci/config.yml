@@ -6,27 +6,27 @@ jobs:
     docker:
       - image: cimg/node:14.21
 
-    working_directory: ~/project 
+    working_directory: ~/project
 
-    steps: 
+    steps:
       - checkout
 
       - restore_cache:
-        keys:
-          - node-deps-{{ checksum "package-lock.json" }}
+          keys:
+            - node-deps-{{ checksum "package-lock.json" }}
 
       - run:
-        name: Install Dependencies
-        command: npm ci
+          name: Install Dependencies
+          command: npm ci
 
-      - save_cache: 
-          key: node-deps-{{ checksum "package-lock.jsoon" }}
+      - save_cache:
+          key: node-deps-{{ checksum "package-lock.json" }}
           paths:
             - node_modules
 
       - run:
-        name: Run Unit Tests
-        command: npm test
+          name: Run Unit Tests
+          command: npm test
 
   docker-build:
     machine: true
@@ -37,16 +37,15 @@ jobs:
       - checkout
 
       - run:
-        name: BUILD DOCKER IMAGE
-        command: docker build -t nodegoat:latest .
+          name: Build Docker Image
+          command: docker build -t nodegoat:latest .
 
-  workflows:
-    version: 2
+workflows:
+  version: 2
 
-    ci_pipeline:
-      jobs:
-        - test:
-        - docker-build:
-          requries:
+  ci_pipeline:
+    jobs:
+      - test
+      - docker-build:
+          requires:
             - test
-
