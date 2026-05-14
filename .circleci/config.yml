@@ -30,7 +30,7 @@ jobs:
 
       - run:
           name: Run Dependency Audit
-          command: npm audit --audit-level=high || True
+          command: npm audit --audit-level=high || true
 
       - run:
           name: Install Semgrep
