@@ -36,9 +36,8 @@ jobs:
       - run:
           name: Install Semgrep
           command: |
-            python3 -m pip install --user semgrep
-            echo 'export PATH=$HOME/.local/bin:$PATH' >> $BASH_ENV
-            source $BASH_ENV
+            sudo apt-get install -y python3-pip
+            pip3 install semgrep
 
       - run:
           name: Run Semgrep SAST Scan
