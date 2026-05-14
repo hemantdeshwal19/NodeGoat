@@ -3,15 +3,43 @@ version: "3.7"
 services:
   web:
     build: .
+    container_name: nodegoat-app
+
     environment:
-      NODE_ENV:
+      NODE_ENV: production
       MONGODB_URI: mongodb://mongo:27017/nodegoat
-    command: sh -c "until nc -z -w 2 mongo 27017 && echo 'mongo is ready for connections' && node artifacts/db-reset.js && npm start; do sleep 2; done"
+
+    command: >
+      sh -c "
+      until nc -z -w 2 mongo 27017;
+      do
+        echo 'waiting for mongo...';
+        sleep 2;
+      done;
+      echo 'mongo is ready';
+      node artifacts/db-reset.js &&
+      npm start
+      "
+
     ports:
       - "4000:4000"
 
+    depends_on:
+      - mongo
+
+    restart: unless-stopped
+
   mongo:
-    image: mongo:4.4
-    user: mongodb
+    image: mongo:4.0
+    container_name: nodegoat-mongo
+
     expose:
-      - 27017
+      - "27017"
+
+    volumes:
+      - mongo-data:/data/db
+
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
