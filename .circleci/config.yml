@@ -43,7 +43,7 @@ jobs:
           name: Run Semgrep SAST Scan
           command: semgrep --config=auto .
 
-  docker-build-and-scan:
+  docker-build-scan-and-push:
     machine: true
 
     working_directory: ~/project
@@ -74,6 +74,20 @@ jobs:
             trivy fs \
               --severity HIGH,CRITICAL \
               --exit-code 0 \
+       - run:
+          name: Docker Login
+          command: |
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+
+      - run:
+          name: Tag Docker Image
+          command: |
+            docker tag nodegoat:latest $DOCKER_USERNAME/nodegoat-devsecops:latest
+
+      - run:
+          name: Push Docker Image
+          command: |
+            docker push $DOCKER_USERNAME/nodegoat-devsecops:latest
               .
 
 workflows:
