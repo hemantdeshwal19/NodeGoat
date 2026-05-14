@@ -2,7 +2,7 @@ version: 2.1
 
 jobs:
 
-  test:
+  test-and-security:
     docker:
       - image: cimg/node:14.21
 
@@ -32,7 +32,16 @@ jobs:
           name: Run Dependency Audit
           command: npm audit --audit-level=high
 
-  docker-build:
+      - run:
+          name: Install Semgrep
+          command: |
+            python3 -m pip install semgrep
+
+      - run:
+          name: Run Semgrep SAST Scan
+          command: semgrep --config=auto .
+
+  docker-build-and-scan:
     machine: true
 
     working_directory: ~/project
@@ -44,12 +53,29 @@ jobs:
           name: Build Docker Image
           command: docker build -t nodegoat:latest .
 
+      - run:
+          name: Install Trivy
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+
+            echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/trivy.list
+
+            sudo apt-get update
+            sudo apt-get install -y trivy
+
+      - run:
+          name: Run Trivy Scan
+          command: trivy image --severity HIGH,CRITICAL nodegoat:latest
+
 workflows:
   version: 2
 
-  ci_pipeline:
+  secure_pipeline:
     jobs:
-      - test
-      - docker-build:
+      - test-and-security
+      - docker-build-and-scan:
           requires:
-            - test
+            - test-and-security
